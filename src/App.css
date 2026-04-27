@@ -563,6 +563,30 @@
   color: var(--text-h);
 }
 
+.interactive-topic-line {
+  display: inline;
+}
+
+.topic-term-button {
+  display: inline;
+  border: 0;
+  background: rgba(107, 114, 128, 0.14);
+  color: inherit;
+  border-radius: 8px;
+  padding: 0 4px;
+  margin: 0 2px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.topic-term-button:hover {
+  background: rgba(36, 88, 211, 0.2);
+}
+
+.topic-separator {
+  opacity: 0.8;
+}
+
 .sentence-grid {
   display: grid;
   gap: 10px;

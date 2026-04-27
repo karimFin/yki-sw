@@ -1192,6 +1192,72 @@ const writingMiniTemplates = [
   },
 ]
 
+const writingPracticeTaskDetails: Record<
+  string,
+  { patternSv: string; instructionSv: string; promptSv: string; checklist: string[] }
+> = {
+  'bostadsbolag: lukt, vatten, buller, reparation': {
+    patternSv: 'Praktiskt meddelande',
+    instructionSv:
+      'Du bor i en lägenhet. Det luktar i badrummet och väggen blir våt efter duschen. Skriv ett mejl till bostadsbolaget. Berätta vad problemet är, hur länge det har varit så och be om hjälp.',
+    promptSv: 'Skriv ett tydligt mejl till bostadsbolaget. Svara på alla delar och avsluta artigt.',
+    checklist: [
+      'Vad är problemet?',
+      'Hur länge har det pågått?',
+      'Varför är det svårt?',
+      'Vad vill du att de ska göra?',
+    ],
+  },
+  'skola eller daghem: frånvaro, hämtning, information': {
+    patternSv: 'Praktiskt meddelande',
+    instructionSv:
+      'Skriv till skola eller daghem. Berätta om frånvaro eller hämtning och fråga om den information du behöver.',
+    promptSv: 'Skriv ett kort och artigt meddelande. Avsluta med en tydlig fråga.',
+    checklist: [
+      'Vilken situation gäller (frånvaro eller hämtning)?',
+      'Vilken information behöver du?',
+      'Vem gäller meddelandet?',
+      'Vilken tydlig fråga avslutar texten?',
+    ],
+  },
+  'hälsocentral: avboka, flytta tid, be om ny tid': {
+    patternSv: 'Praktiskt meddelande',
+    instructionSv:
+      'Skriv till hälsocentralen. Berätta att du måste avboka eller flytta en tid, ge en orsak och be om en ny tid.',
+    promptSv: 'Skriv ett tydligt meddelande och avsluta artigt.',
+    checklist: [
+      'Vilken tid gäller det?',
+      'Varför måste tiden flyttas?',
+      'När kan du komma i stället?',
+      'Ber du tydligt om en ny tid?',
+    ],
+  },
+  'chef: byte av arbetsskift, frånvaro, arbetsschema': {
+    patternSv: 'Praktiskt meddelande',
+    instructionSv:
+      'Skriv till din chef. Berätta att du behöver byta arbetsskift eller att du är frånvarande. Ge en orsak och föreslå en lösning.',
+    promptSv: 'Skriv ett tydligt och professionellt meddelande.',
+    checklist: [
+      'Vilken arbetstid behöver ändras?',
+      'Vad är orsaken?',
+      'Vilken lösning föreslår du?',
+      'Är tonen artig och tydlig?',
+    ],
+  },
+  'kommun eller kursarrangör: fråga om nivå, tid, anmälan': {
+    patternSv: 'Praktiskt meddelande',
+    instructionSv:
+      'Skriv till kommunen eller kursarrangören och fråga om nivå, schema och hur anmälan går till.',
+    promptSv: 'Skriv ett tydligt informationsmejl. Ställ korta, tydliga frågor och avsluta artigt.',
+    checklist: [
+      'Vilken kurs eller tjänst gäller det?',
+      'Vilken nivå vill du fråga om?',
+      'Frågar du om tid/schemat?',
+      'Frågar du tydligt om anmälan?',
+    ],
+  },
+}
+
 const writingMemoryRules = [
   'Remember structure first, vocabulary second.',
   'If you know 5 strong phrases, you can write many different answers.',
@@ -2458,6 +2524,18 @@ function App() {
   const [, setShowTranscript] = useState(false)
   const [showEnglishHelp] = useState(true)
   const [copiedTemplate, setCopiedTemplate] = useState<string | null>(null)
+  const [selectedTopicTerm, setSelectedTopicTerm] = useState<{
+    source: string
+    translation: string
+    lang: 'sv-SE' | 'en-US'
+  } | null>(null)
+  const [selectedTextTerm, setSelectedTextTerm] = useState<{
+    source: string
+    translation: string
+    lang: 'sv-SE' | 'en-US'
+  } | null>(null)
+  const [showWordEnglish, setShowWordEnglish] = useState(true)
+  const [autoSpeakWordOnHover, setAutoSpeakWordOnHover] = useState(false)
   const [slowListeningMode, setSlowListeningMode] = useState(false)
   const [visibleListeningTranscripts, setVisibleListeningTranscripts] = useState<Record<string, boolean>>({})
   const [listeningPracticeAnswers, setListeningPracticeAnswers] = useState<Record<string, Record<string, string>>>({})
@@ -2513,6 +2591,7 @@ function App() {
   const realExamAudioContextRef = useRef<AudioContext | null>(null)
   const realExamRunTokenRef = useRef(0)
   const practiceRunTokenRef = useRef(0)
+  const writingPracticeRef = useRef<HTMLElement | null>(null)
 
   const selectedExam = useMemo(
     () => mockExams.find((exam) => exam.id === selectedExamId) ?? mockExams[0],
@@ -2538,6 +2617,29 @@ function App() {
   const selectedRealWritingScenario =
     realWritingScenarios.find((scenario) => scenario.id === selectedRealWritingScenarioId) ??
     realWritingScenarios[0]
+  const writingTopicTermPairs = useMemo(() => {
+    const splitTerms = (value: string) =>
+      value
+        .split(':')
+        .flatMap((part) => part.split(','))
+        .map((part) => part.trim())
+        .filter(Boolean)
+
+    const pairs = bilingualWritingTopics.flatMap((group) =>
+      group.topics.flatMap((topic) => {
+        const enTerms = splitTerms(topic.en)
+        const svTerms = splitTerms(topic.sv)
+        const len = Math.min(enTerms.length, svTerms.length)
+        return Array.from({ length: len }, (_, index) => ({ en: enTerms[index], sv: svTerms[index] }))
+      }),
+    )
+
+    const uniqueMap = new Map<string, { en: string; sv: string }>()
+    pairs.forEach((pair) => {
+      uniqueMap.set(`${pair.en.toLowerCase()}|${pair.sv.toLowerCase()}`, pair)
+    })
+    return Array.from(uniqueMap.values())
+  }, [])
   const selectedListeningPaperExam = realListeningPaperExams[0]
   const selectedWritingPaperExam = realWritingPaperExams[0]
   const splitIntoSentences = (value: string) =>
@@ -2712,6 +2814,50 @@ function App() {
     const active = container.querySelector('.caption-line.active') as HTMLElement | null
     active?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [practiceLiveCaptionIndex, isPracticeAudioRunning, activeTab])
+
+  useEffect(() => {
+    if (activeTab !== 'writingPractice') {
+      setSelectedTextTerm(null)
+      return
+    }
+
+    const handleSelectionChange = () => {
+      const root = writingPracticeRef.current
+      if (!root) {
+        return
+      }
+      const selection = window.getSelection()
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        setSelectedTextTerm(null)
+        return
+      }
+      const range = selection.getRangeAt(0)
+      const selectedText = selection.toString().trim()
+      const anchorNode = range.commonAncestorContainer
+      const isInside = root.contains(anchorNode.nodeType === Node.TEXT_NODE ? anchorNode.parentNode : anchorNode)
+      if (!isInside || !selectedText) {
+        setSelectedTextTerm(null)
+        return
+      }
+      const normalized = selectedText.toLowerCase()
+      const match = writingTopicTermPairs.find(
+        (pair) => pair.sv.toLowerCase() === normalized || pair.en.toLowerCase() === normalized,
+      )
+      const isLikelySwedish = /[åäö]/i.test(selectedText)
+      setSelectedTextTerm({
+        source: selectedText,
+        translation: match
+          ? match.sv.toLowerCase() === normalized
+            ? match.en
+            : match.sv
+          : 'No saved translation yet',
+        lang: isLikelySwedish ? 'sv-SE' : 'en-US',
+      })
+    }
+
+    document.addEventListener('selectionchange', handleSelectionChange)
+    return () => document.removeEventListener('selectionchange', handleSelectionChange)
+  }, [activeTab, writingTopicTermPairs])
 
   const progressPercentage = Math.round((completedExams.length / mockExams.length) * 100)
 
@@ -2931,6 +3077,101 @@ function App() {
       window.setTimeout(() => setCopiedTemplate((current) => (current === title ? null : current)), 1800)
     } catch {
       setCopiedTemplate(null)
+    }
+  }
+
+  const speakWithLang = (text: string, lang: 'sv-SE' | 'en-US') => {
+    if (!('speechSynthesis' in window) || !text.trim()) {
+      return
+    }
+    const utterance = new SpeechSynthesisUtterance(text.trim())
+    utterance.lang = lang
+    utterance.rate = 0.88
+    window.speechSynthesis.cancel()
+    window.speechSynthesis.speak(utterance)
+  }
+
+  const findTopicTermInfo = (term: string) => {
+    const normalized = term.toLowerCase()
+    const match = writingTopicTermPairs.find(
+      (pair) => pair.sv.toLowerCase() === normalized || pair.en.toLowerCase() === normalized,
+    )
+    if (!match) {
+      return null
+    }
+    const isSwedishTerm = match.sv.toLowerCase() === normalized
+    return {
+      source: term,
+      translation: isSwedishTerm ? match.en : match.sv,
+      lang: isSwedishTerm ? ('sv-SE' as const) : ('en-US' as const),
+    }
+  }
+
+  const renderInteractiveTopicLine = (line: string, keyPrefix: string) => {
+    const chunks = line.split(/([:,])/)
+    return (
+      <span className="interactive-topic-line">
+        {chunks.map((chunk, index) => {
+          const value = chunk.trim()
+          if (!value) {
+            return (
+              <span key={`${keyPrefix}-space-${index}`} className="topic-separator">
+                {chunk}
+              </span>
+            )
+          }
+          if (value === ':' || value === ',') {
+            return (
+              <span key={`${keyPrefix}-sep-${index}`} className="topic-separator">
+                {chunk}
+              </span>
+            )
+          }
+          const info = findTopicTermInfo(value)
+          if (!info) {
+            return <span key={`${keyPrefix}-plain-${index}`}>{chunk}</span>
+          }
+          return (
+            <button
+              key={`${keyPrefix}-term-${index}`}
+              type="button"
+              className="topic-term-button"
+              onClick={() => {
+                setSelectedTopicTerm(info)
+                speakWithLang(info.source, info.lang)
+              }}
+              onMouseEnter={() => {
+                if (autoSpeakWordOnHover) {
+                  speakWithLang(info.source, info.lang)
+                }
+              }}
+              title={`Play "${info.source}"`}
+            >
+              {chunk}
+            </button>
+          )
+        })}
+      </span>
+    )
+  }
+
+  const getWritingPracticeTaskDetail = (topic: { en: string; sv: string }) => {
+    const explicit = writingPracticeTaskDetails[topic.en]
+    if (explicit) {
+      return explicit
+    }
+    const isPractical = topic.en.includes(':')
+    return {
+      patternSv: isPractical ? 'Praktiskt meddelande' : 'Åsiktstext',
+      instructionSv: isPractical
+        ? `Skriv ett praktiskt meddelande om temat: ${topic.sv}. Beskriv situationen tydligt och be om den hjälp eller information du behöver.`
+        : `Skriv en åsiktstext om temat: ${topic.sv}. Skriv din åsikt tydligt och ge flera skäl.`,
+      promptSv: isPractical
+        ? 'Skriv ett tydligt meddelande. Svara på alla delar och avsluta artigt.'
+        : 'Skriv en tydlig åsiktstext med enkel struktur och kort slutsats.',
+      checklist: isPractical
+        ? ['Vad är situationen?', 'Vad behöver du?', 'Vad frågar du om?', 'Avslutar du artigt?']
+        : ['Skriv din åsikt tidigt.', 'Ge minst två skäl.', 'Lägg till ett exempel.', 'Avsluta tydligt.'],
     }
   }
 
@@ -3377,9 +3618,92 @@ function App() {
 
       {activeTab === 'writingPractice' && (
         <main className="content-grid">
-          <section className="panel">
+          <section
+            ref={writingPracticeRef}
+            className="panel"
+            onMouseUp={() => window.dispatchEvent(new Event('selectionchange'))}
+            onKeyUp={() => window.dispatchEvent(new Event('selectionchange'))}
+            onTouchEnd={() => window.dispatchEvent(new Event('selectionchange'))}
+          >
             <p className="card-label">Writing practice</p>
             <h2>Important writing topics to practise again and again</h2>
+            <div className="hero-actions compact-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setShowWordEnglish((current) => !current)}
+              >
+                Translation: {showWordEnglish ? 'On' : 'Off'}
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setAutoSpeakWordOnHover((current) => !current)}
+              >
+                Hover audio: {autoSpeakWordOnHover ? 'On' : 'Off'}
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setSelectedTopicTerm(null)
+                  setSelectedTextTerm(null)
+                }}
+              >
+                Clear selected
+              </button>
+            </div>
+            {selectedTopicTerm && (
+              <article className="task-card plain-task-card">
+                <h3>Selected term</h3>
+                <p>
+                  <strong>{selectedTopicTerm.source}</strong>
+                </p>
+                {showWordEnglish && (
+                  <p className="inline-translation">{translateToEnglish(selectedTopicTerm.translation)}</p>
+                )}
+                <div className="hero-actions compact-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => speakWithLang(selectedTopicTerm.source, selectedTopicTerm.lang)}
+                  >
+                    Play selected term audio
+                  </button>
+                </div>
+              </article>
+            )}
+            {selectedTextTerm && (
+              <article className="task-card plain-task-card">
+                <h3>Selected text</h3>
+                <p>
+                  <strong>{selectedTextTerm.source}</strong>
+                </p>
+                {showWordEnglish && (
+                  <p className="inline-translation">{translateToEnglish(selectedTextTerm.translation)}</p>
+                )}
+                <div className="hero-actions compact-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => speakWithLang(selectedTextTerm.source, selectedTextTerm.lang)}
+                  >
+                    Play selected audio
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => {
+                      window.getSelection()?.removeAllRanges()
+                      setSelectedTextTerm(null)
+                    }}
+                  >
+                    Clear selection
+                  </button>
+                </div>
+              </article>
+            )}
             <div className="plan-grid">
               {bilingualWritingTopics.map((group) => (
                 <article key={group.title} className="info-card">
@@ -3389,8 +3713,27 @@ function App() {
                   <div className="topic-answer-list">
                     {group.topics.map((topic) => (
                       <article key={topic.en} className="topic-answer-card">
-                        <strong>{topic.en}</strong>
-                        <span className="english-line">{topic.sv}</span>
+                        <strong>{renderInteractiveTopicLine(topic.en, `${topic.en}-en`)}</strong>
+                        <span className="english-line">
+                          {renderInteractiveTopicLine(topic.sv, `${topic.en}-sv`)}
+                        </span>
+                        {(() => {
+                          const detail = getWritingPracticeTaskDetail(topic)
+                          return (
+                            <div className="topic-answer-block">
+                              <h4>Exam-style task (Svenska)</h4>
+                              <p className="plain-exam-note">Typ: {detail.patternSv}</p>
+                              <p>{detail.instructionSv}</p>
+                              <p className="instruction">{detail.promptSv}</p>
+                              <p className="plain-exam-note">Det ska framgå i texten:</p>
+                              <ul>
+                                {detail.checklist.map((item) => (
+                                  <li key={`${topic.en}-${item}`}>{item}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )
+                        })()}
                         <div className="topic-answer-block">
                           <h4>Sample answer in Swedish</h4>
                           <pre className="template-pre">{topic.answerSv}</pre>
