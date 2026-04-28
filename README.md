@@ -85,6 +85,4 @@ npm run build
 - Audio playback uses browser speech synthesis (`sv-SE`) for practice simulation.
 - This project is designed for practical B1 preparation; it is not an official YKI exam product.
 
-## License
 
-MIT (or project-owner preferred license).
