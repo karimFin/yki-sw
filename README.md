@@ -1,6 +1,6 @@
 # YKI 2026 - Swedish B1 Exam Practice App
 
-An exam-style web app for **YKI Swedish intermediate (B1 focus)** practice, designed for learners preparing for practical tasks such as citizenship-related language proof.
+An exam-style web app for **YKI Swedish intermediate (B1 focus)** practice, designed for learners preparing for practical tasks.
 
 Built with React + TypeScript + Vite.
 
